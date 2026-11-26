@@ -1095,7 +1095,7 @@ if (process.argv.includes('--live')) {
   ok(JSON.stringify(list).includes('"k":"root:om_1"'), '会话列表按钮也带绑定键')
 }
 
-// ---------- 8. 群消息走 reply_in_thread ----------
+// ---------- 8. 群消息回复到消息、不进话题（本地定制）----------
 {
   const { FeishuTransport } = await import('../src/feishu.js')
   const ft = new FeishuTransport(
@@ -1117,7 +1117,7 @@ if (process.argv.includes('--live')) {
   }
 
   const id1 = await ft.sendCard('oc_g', { schema: '2.0' }, { replyTo: 'om_1' })
-  ok(calls[0][0] === 'reply' && calls[0][1].data.reply_in_thread === true, '群里发卡片走 reply_in_thread（进话题）')
+  ok(calls[0][0] === 'reply' && calls[0][1].data.reply_in_thread === false, '群里发卡片回复到消息、不进话题（回在主聊天流）')
   ok(calls[0][1].path.message_id === 'om_1', '回复挂在话题根消息下', calls[0][1]?.path?.message_id)
   ok(id1 === 'om_reply', '返回新建卡片的 message_id')
 

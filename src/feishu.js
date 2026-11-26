@@ -300,13 +300,13 @@ export class FeishuTransport {
     if (!text) return
 
     /**
-     * 群里一条话题 = 一个会话。话题的「根」就是那条被回复的消息：
-     *   - 已经在话题里的消息：root_id 指向话题根
-     *   - 主聊天流里新 @ 的消息：root_id 为空，它自己就成为新话题的根
-     * 两种情况的键用同一个公式，所以开完话题不需要再改绑定。
+     * 一个群 = 一个会话（本地定制 local/group-main-flow）。
+     * 私聊仍是一聊一会话；群里不再按话题根分键，整个群共享一个绑定，
+     * 这样 /cd 一次就钉住整个群的目录，后续 @ 都落在同一会话、同一目录。
+     * rootId 仍保留，只用于「回复到那条消息」，不再用它开话题。
      */
     const rootId = isGroup ? m.root_id || m.message_id : null
-    const key = isGroup ? `root:${rootId}` : m.chat_id
+    const key = isGroup ? `chat:${m.chat_id}` : m.chat_id
     const threadId = m.thread_id || null
 
     // 群消息记一行原始上下文：话题绑定要看 thread_id / root_id，
@@ -591,15 +591,15 @@ export class FeishuTransport {
   }
 
   /**
-   * 发送消息。replyTo 有值就进话题（reply_in_thread），否则发到会话主聊天流。
-   * 群里的所有输出都应该带 replyTo，否则卡片会散落在主群、和话题对不上。
+   * 发送消息。replyTo 有值就回复到那条消息（reply_in_thread=false，直接回在
+   * 群里主聊天流，不再开话题）；否则发到会话主聊天流。
    */
   async _send(chatId, msgType, content, replyTo) {
     if (replyTo) {
       const res = await withTimeout(
         this.client.im.v1.message.reply({
           path: { message_id: replyTo },
-          data: { msg_type: msgType, content, reply_in_thread: true },
+          data: { msg_type: msgType, content, reply_in_thread: false },
         }),
         'reply',
       )
