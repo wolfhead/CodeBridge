@@ -123,6 +123,8 @@ export const DEFAULTS = {
     showReasoning: false,
     // 是否在卡片上展示工具调用链路。默认 false：飞书只看结论，要轨迹去电脑上看
     showTools: false,
+    // 是否在卡片上展示「新会话 / 会话列表」按钮。单项目单群、免 @ 的个人用法用不到，可关。
+    showSessionButtons: true,
     // 单次卡片正文最大字符数
     maxBodyChars: 6000,
     // 事件流静默多久判定卡死（毫秒）。0 = 关闭。**只对 opencode 后端生效**——

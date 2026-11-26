@@ -184,8 +184,10 @@ export function runCard(state, meta = {}) {
   const footer = []
   const nav = navOf({ k: meta.key, rt: meta.rootId })
   if (state.status === 'running') footer.push(button('中止', { a: 'abort', s: state.sessionId, ...nav }, 'danger'))
-  footer.push(button('新会话', { a: 'new', ...nav }, 'default'))
-  footer.push(button('会话列表', { a: 'sessions', ...nav }, 'default'))
+  if (meta.showSessionButtons !== false) {
+    footer.push(button('新会话', { a: 'new', ...nav }, 'default'))
+    footer.push(button('会话列表', { a: 'sessions', ...nav }, 'default'))
+  }
   elements.push(buttonRow(footer))
 
   elements.push(note(usage.length ? `${usage.join(' · ')}｜${help}` : help))

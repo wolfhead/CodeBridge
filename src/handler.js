@@ -135,6 +135,7 @@ export class Bridge {
               key: it.key,
               rootId: it.replyTo,
               isGroup: it.isGroup,
+              showSessionButtons: this.cfg.behavior.showSessionButtons,
             }),
           )
           this.log.info(`已把上次遗留的执行卡片标为中断: ${it.cardId}`)
@@ -793,6 +794,7 @@ export class Bridge {
       key: ctx.key,
       rootId: ctx.replyTo,
       isGroup: Boolean(msg.isGroup),
+      showSessionButtons: this.cfg.behavior.showSessionButtons,
     }
     const run = { state, cardId: null, chatId: ctx.chatId, replyTo: ctx.replyTo, timer: null, lastFlush: 0, meta }
     this.runs.set(session.id, run)
@@ -1351,6 +1353,7 @@ export class Bridge {
                   key,
                   rootId: replyTo,
                   isGroup: Boolean(replyTo),
+                  showSessionButtons: this.cfg.behavior.showSessionButtons,
                 }),
               )
               .catch((e) => this.log.warn?.(`中止后更新卡片失败: ${e.message}`))
