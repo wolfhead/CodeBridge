@@ -292,11 +292,17 @@ export class FeishuTransport {
     // 而模型只看到「@Lil_P 你们三个」——既不知道被点的有自己，
     // 也数不清这句话冲几个人说。名字取飞书事件里 mentions 的 name
     let text = raw
+    // 命令分流用：从原始文本里移除 @ 占位符得到干净正文。
+    // 不能用正则剥「@名字」——机器人名可能带空格（如「我的 CodeBridge」
+    // 会被 `^(@\S+\s+)+` 剥成「CodeBridge」），命令就认不出来了。
+    let cmdText = raw
     for (const mt of mentions) {
       if (!mt?.key) continue
       text = text.split(mt.key).join(`@${mt.name || '某人'}`)
+      cmdText = cmdText.split(mt.key).join('')
     }
     text = text.trim()
+    cmdText = cmdText.trim()
     if (!text) return
 
     /**
@@ -372,11 +378,9 @@ export class FeishuTransport {
       topicContext,
       layout,
       text,
-      // 命令判定用剥掉开头 @ 的版本。@ 占位符全部还原之后，群里
-      // 「@Lil_P /help」的 text 不再以 / 开头，handler 的命令分流认不出它，
-      // 命令会被当普通消息发给模型。text 给模型看（保留 @，语义完整），
-      // cmdText 专供 startsWith('/') 判定，两处各取所需
-      cmdText: text.replace(/^(@\S+\s+)+/, ''),
+      // 命令判定用剥掉 @ 占位符的版本（见上面 cmdText 的计算）。
+      // text 给模型看（保留 @ 还原成 @姓名，语义完整），cmdText 专供 startsWith('/') 判定。
+      cmdText,
       messageId: m.message_id,
       chatType: m.chat_type,
     })

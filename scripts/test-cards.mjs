@@ -515,7 +515,7 @@ if (process.argv.includes('--live')) {
     ]),
   )
   ok(got.length === 2 && got[1].text === '@Lil_O 你看下 @张三', '@ 了我和别人 → 全部还原成 @名字，模型知道在跟谁说话')
-  ok(got[1].cmdText === '你看下 @张三', '多个 @ 开头时 cmdText 只剥开头那一串')
+  ok(got[1].cmdText === '你看下', 'cmdText 移除所有 @ 占位符（命令判定用，与名字是否带空格无关）')
 
   // @ 还原不能让命令分流失效：群里「@我 /help」的 text 不再以 / 开头，
   // handler 靠 feishu.js 给的 cmdText 认命令。这条路径坏过的现象是
