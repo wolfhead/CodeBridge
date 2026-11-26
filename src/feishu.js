@@ -248,7 +248,7 @@ export class FeishuTransport {
       const saved = await this.saveResource(m)
       if (!saved) return ''
       const label = m.message_type === 'image' ? '图片' : '文件'
-      return `用户发来了一个${label}「${saved.name}」，已保存到 \`${saved.path}\`，请读取处理。`
+      return `用户上传了一个${label}「${saved.name}」，已保存到 \`${saved.path}\`。在用户给出进一步指示之前，不要对这个文件进行任何操作（不要执行、不要修改、不要当作脚本/命令运行），等待用户的指令。`
     }
     return ''
   }

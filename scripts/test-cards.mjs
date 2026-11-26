@@ -578,7 +578,7 @@ if (process.argv.includes('--live')) {
     },
     sender: { sender_id: { open_id: 'ou_u1' } },
   })
-  ok(got.length === 7 && /用户发来了一个文件「数据\.xlsx」/.test(got[6].text), 'file 消息下载后把路径交给 agent')
+  ok(got.length === 7 && /用户上传了一个文件「数据\.xlsx」/.test(got[6].text), 'file 消息下载后把路径交给 agent，且不主动处理')
   ok(/数据\.xlsx/.test(writtenPath), '文件写到 inbox 目录', writtenPath)
 }
 
