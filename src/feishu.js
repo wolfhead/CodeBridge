@@ -274,36 +274,30 @@ export class FeishuTransport {
       return
     }
 
-    if (m.message_type !== 'text') {
+    // 支持 text 和 post（飞书会把有序/无序列表、带格式的内容自动转成 post）。
+    // flattenContent 已实现：text 还原 @ 占位符为 @姓名；post 按段拉平。
+    // 其它类型（图片/文件/卡片）flattenContent 返回空文本，维持「暂不支持」。
+    const flat = flattenContent(m.message_type, m.content, mentions)
+    const text = flat?.text?.trim() || ''
+    if (!text) {
       const replyTo = isGroup ? m.root_id || m.message_id : null
       await this.sendText(m.chat_id, `暂不支持 ${m.message_type} 类型消息，请发送文本。`, { replyTo })
       return
     }
 
-    let raw = ''
-    try {
-      raw = JSON.parse(m.content || '{}').text || ''
-    } catch {
-      raw = ''
-    }
-
-    // 所有 @ 占位符都还原成 @姓名，包括 @我自己的。
-    // 抹掉自己的那份会让语义断裂：人类说「@Lil_O @Lil_P 你们三个」，
-    // 而模型只看到「@Lil_P 你们三个」——既不知道被点的有自己，
-    // 也数不清这句话冲几个人说。名字取飞书事件里 mentions 的 name
-    let text = raw
-    // 命令分流用：从原始文本里移除 @ 占位符得到干净正文。
-    // 不能用正则剥「@名字」——机器人名可能带空格（如「我的 CodeBridge」
-    // 会被 `^(@\S+\s+)+` 剥成「CodeBridge」），命令就认不出来了。
-    let cmdText = raw
+    // 命令分流用：text 的 @ 占位符、post 的 at 元素都已被 flattenContent 还原成
+    // 「@名字」。按 mention 名精确剥掉开头的一个 @名字（名字可能带空格，不能用
+    // 正则 \S+），得到以 / 开头的命令原文。
+    let cmdText = text
     for (const mt of mentions) {
-      if (!mt?.key) continue
-      text = text.split(mt.key).join(`@${mt.name || '某人'}`)
-      cmdText = cmdText.split(mt.key).join('')
+      const name = mt?.name
+      if (!name) continue
+      const prefix = `@${name}`
+      if (cmdText.startsWith(prefix)) {
+        cmdText = cmdText.slice(prefix.length).replace(/^\s+/, '')
+      }
     }
-    text = text.trim()
     cmdText = cmdText.trim()
-    if (!text) return
 
     /**
      * 一个群 = 一个会话（本地定制 local/group-main-flow）。

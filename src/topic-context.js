@@ -85,8 +85,16 @@ export function flattenContent(messageType, rawContent, mentions = []) {
 
   if (messageType === 'post') {
     const out = []
-    const nameOfId = new Map(mentions.map((mt) => [mt?.id?.user_id || mt?.user_id, mt?.name || '']))
-    for (const para of parsed?.content || []) {
+    const nameOfId = new Map()
+    for (const mt of mentions) {
+      const name = mt?.name || ''
+      if (mt?.id?.open_id) nameOfId.set(mt.id.open_id, name)
+      if (mt?.id?.user_id) nameOfId.set(mt.id.user_id, name)
+      if (mt?.user_id) nameOfId.set(mt.user_id, name)
+    }
+    // 真实飞书事件 content 是 {post:{zh_cn:{content}}}；简化/测试是 {title,content}，两者都兼容
+    const content = parsed?.post?.zh_cn?.content || parsed?.content || []
+    for (const para of content) {
       if (!Array.isArray(para)) continue
       const line = []
       for (const el of para) {

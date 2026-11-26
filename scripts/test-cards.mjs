@@ -515,7 +515,7 @@ if (process.argv.includes('--live')) {
     ]),
   )
   ok(got.length === 2 && got[1].text === '@Lil_O 你看下 @张三', '@ 了我和别人 → 全部还原成 @名字，模型知道在跟谁说话')
-  ok(got[1].cmdText === '你看下', 'cmdText 移除所有 @ 占位符（命令判定用，与名字是否带空格无关）')
+  ok(got[1].cmdText === '你看下 @张三', 'cmdText 只剥开头 @名字（命令判定用，名字带空格也能剥对）')
 
   // @ 还原不能让命令分流失效：群里「@我 /help」的 text 不再以 / 开头，
   // handler 靠 feishu.js 给的 cmdText 认命令。这条路径坏过的现象是
@@ -528,6 +528,35 @@ if (process.argv.includes('--live')) {
     ev('hi', [], { chat_type: 'p2p', chat_id: 'oc_dm' }),
   )
   ok(got.length === 4, '私聊不受影响，不需要 @')
+
+  // post 消息（飞书把有序/无序列表、带格式的内容自动转成 post）也要进主路径
+  await t.handleImMessage({
+    message: {
+      message_type: 'post',
+      chat_type: 'group',
+      chat_id: 'oc_g',
+      message_id: 'om_' + ++seq,
+      content: JSON.stringify({
+        post: { zh_cn: { title: 't', content: [[{ tag: 'text', text: '1. 第一项' }], [{ tag: 'text', text: '2. 第二项' }]] } },
+      }),
+      mentions: me,
+    },
+    sender: { sender_id: { open_id: 'ou_u1' } },
+  })
+  ok(got.length === 5 && got[4].text === '1. 第一项\n2. 第二项', 'post 富文本被拉平成纯文本')
+
+  await t.handleImMessage({
+    message: {
+      message_type: 'post',
+      chat_type: 'group',
+      chat_id: 'oc_g',
+      message_id: 'om_' + ++seq,
+      content: JSON.stringify({ post: { zh_cn: { title: 't', content: [[{ tag: 'text', text: '/help' }]] } } }),
+      mentions: me,
+    },
+    sender: { sender_id: { open_id: 'ou_u1' } },
+  })
+  ok(got.length === 6 && got[5].cmdText === '/help', 'post 里的 /help 命令分流认得出来')
 }
 
 // ---------- 6.3 拿不到自身 open_id 时退化为「@ 谁都算」（并在启动时告警） ----------
