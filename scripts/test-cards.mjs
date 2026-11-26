@@ -557,6 +557,29 @@ if (process.argv.includes('--live')) {
     sender: { sender_id: { open_id: 'ou_u1' } },
   })
   ok(got.length === 6 && got[5].cmdText === '/help', 'post 里的 /help 命令分流认得出来')
+
+  // file 消息：下载到 inbox，把路径交给 agent
+  let writtenPath = ''
+  t.client.im.v1.messageResource = {
+    get: async () => ({
+      writeFile: async (p) => { writtenPath = p },
+      getReadableStream: () => null,
+      headers: {},
+    }),
+  }
+  await t.handleImMessage({
+    message: {
+      message_type: 'file',
+      chat_type: 'group',
+      chat_id: 'oc_g',
+      message_id: 'om_' + ++seq,
+      content: JSON.stringify({ file_key: 'file_v2_abc', file_name: '数据.xlsx' }),
+      mentions: me,
+    },
+    sender: { sender_id: { open_id: 'ou_u1' } },
+  })
+  ok(got.length === 7 && /用户发来了一个文件「数据\.xlsx」/.test(got[6].text), 'file 消息下载后把路径交给 agent')
+  ok(/数据\.xlsx/.test(writtenPath), '文件写到 inbox 目录', writtenPath)
 }
 
 // ---------- 6.3 拿不到自身 open_id 时退化为「@ 谁都算」（并在启动时告警） ----------

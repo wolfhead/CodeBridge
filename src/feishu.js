@@ -1,5 +1,7 @@
 import * as Lark from '@larksuiteoapi/node-sdk'
-import { PROMPT_TEMPLATES, deepMerge } from './config.js'
+import { mkdirSync } from 'node:fs'
+import { join } from 'node:path'
+import { CONFIG_DIR, PROMPT_TEMPLATES, deepMerge } from './config.js'
 import { TopicLog, contextKeyOf, flattenContent, renderTopicContext } from './topic-context.js'
 import { render } from './template.js'
 
@@ -208,6 +210,49 @@ export class FeishuTransport {
     return this.members.get(chatId)?.get(openId) || ''
   }
 
+  /**
+   * 收文件/图片：下载到 inbox，返回 {path, name}；失败返回 null。
+   * SDK 的 messageResource.get 返回 writeFile()，直接落盘。
+   */
+  async saveResource(m) {
+    try {
+      const isImage = m.message_type === 'image'
+      const parsed = JSON.parse(m.content || '{}')
+      const key = isImage ? parsed.image_key : parsed.file_key
+      if (!key) return null
+      const name = (isImage ? parsed.image_name : parsed.file_name) || `${isImage ? 'image' : 'file'}_${Date.now()}`
+      const res = await this.client.im.v1.messageResource.get({
+        params: { type: isImage ? 'image' : 'file' },
+        path: { message_id: m.message_id, file_key: key },
+      })
+      const inbox = join(CONFIG_DIR, 'inbox')
+      mkdirSync(inbox, { recursive: true })
+      const filePath = join(inbox, `${Date.now()}_${name}`)
+      await res.writeFile(filePath)
+      return { path: filePath, name }
+    } catch (err) {
+      this.log.warn?.(`下载资源失败: ${err?.message || err}`)
+      return null
+    }
+  }
+
+  /**
+   * 把一条消息抽成要交给 agent 的正文。text/post 走 flattenContent 拉平；
+   * file/image 下载到 inbox 后把路径交给 agent；其余返回空串（上层统一「暂不支持」）。
+   */
+  async messageText(m, mentions) {
+    if (m.message_type === 'text' || m.message_type === 'post') {
+      return flattenContent(m.message_type, m.content, mentions)?.text?.trim() || ''
+    }
+    if (m.message_type === 'file' || m.message_type === 'image') {
+      const saved = await this.saveResource(m)
+      if (!saved) return ''
+      const label = m.message_type === 'image' ? '图片' : '文件'
+      return `用户发来了一个${label}「${saved.name}」，已保存到 \`${saved.path}\`，请读取处理。`
+    }
+    return ''
+  }
+
   async handleImMessage(data) {
     const m = data?.message
     if (!m) return
@@ -274,11 +319,8 @@ export class FeishuTransport {
       return
     }
 
-    // 支持 text 和 post（飞书会把有序/无序列表、带格式的内容自动转成 post）。
-    // flattenContent 已实现：text 还原 @ 占位符为 @姓名；post 按段拉平。
-    // 其它类型（图片/文件/卡片）flattenContent 返回空文本，维持「暂不支持」。
-    const flat = flattenContent(m.message_type, m.content, mentions)
-    const text = flat?.text?.trim() || ''
+    // 抽消息正文：text/post 拉平；file/image 下载到 inbox 给路径；其余类型返回空。
+    const text = await this.messageText(m, mentions)
     if (!text) {
       const replyTo = isGroup ? m.root_id || m.message_id : null
       await this.sendText(m.chat_id, `暂不支持 ${m.message_type} 类型消息，请发送文本。`, { replyTo })
